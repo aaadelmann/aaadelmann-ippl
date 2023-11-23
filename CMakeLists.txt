@@ -99,6 +99,10 @@ if (ENABLE_UNIT_TESTS)
     add_subdirectory (unit_tests)
 endif ()
 
+
+add_subdirectory (opaltest)
+
+
 configure_file (${CMAKE_CURRENT_SOURCE_DIR}/cmake/${PROJECT_NAME}Config.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}Config_install.cmake )
 
