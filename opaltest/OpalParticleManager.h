@@ -11,6 +11,46 @@
    b) the solution(s) need to be backinterpolated to the particle in the PICmanager
 
 
+Additional Functions
+--------------------
+
+
+   setFieldsolver
+   getFieldsolver
+
+   setDistribution
+   getDistribution
+
+
+Main loop
+---------
+
+
+   for integration
+     if not injectionDome
+       injected = distr_m->create()
+       injectrd = distr_m->inject()
+       update()
+
+     drift()
+     update()
+     kick()
+     drift()
+
+     diagnostics()
+     updateExternalFields()
+     update()
+
+updateExternalFields(): check if bunch has access to the fields of eternal elements. Maybee phase
+out some elements and read in new elements
+
+
+diagnostics(): calculate statistics and maybee write tp h5 and stat files
+
+
+
+
+
 
  */
 
@@ -24,14 +64,22 @@
 #include "Random/Distribution.h"
 #include "Random/InverseTransformSampling.h"
 #include "Random/NormalDistribution.h"
+#include "Random/Randn.h"
 
 using view_type = typename ippl::detail::ViewType<ippl::Vector<double, Dim>, 1>::view_type;
 
 const char* TestName = "OPALTEST";
 
 class OpalParticleManager
-    : public ippl::PicManager<ParticleContainer<double, 3>, FieldContainer<double, 3>,
-                              FieldSolver<double, 3>, LoadBalancer<double, 3>> {
+    : public ippl::PicManager<double, 3, ParticleContainer<double, 3>, FieldContainer<double, 3>,
+                              LoadBalancer<double, 3>> {
+public:
+    using ParticleContainer_t = ParticleContainer<T, Dim>;
+    using FieldContainer_t    = FieldContainer<T, Dim>;
+    using FieldSolver_t       = FieldSolver<T, Dim>;
+    using LoadBalancer_t      = LoadBalancer<T, Dim>;
+
+private:
     double loadbalancethreshold_m;
     double time_m;
     Vector_t<int, Dim> nr_m;
@@ -69,8 +117,8 @@ class OpalParticleManager
 public:
     OpalParticleManager(double totalCharge, Vector_t<int, Dim> nr, size_t totalP, int nt,
                         std::string solver, double lbt, std::string step_method)
-        : ippl::PicManager<ParticleContainer<double, 3>, FieldContainer<double, 3>,
-                           FieldSolver<double, 3>, LoadBalancer<double, 3>>()
+        : ippl::PicManager<double, 3, ParticleContainer<double, 3>, FieldContainer<double, 3>,
+                           LoadBalancer<double, 3>>()
         , time_m(0.0)
         , nr_m(nr)
         , totalP_m(totalP)
@@ -110,19 +158,26 @@ public:
 
         bool isAllPeriodic = true;
 
-        Mesh_t<Dim>* mesh = new Mesh_t<Dim>(this->domain_m, this->hr_m, this->origin_m);
-        FieldLayout_t<Dim>* FL =
-            new FieldLayout_t<Dim>(MPI_COMM_WORLD, this->domain_m, this->decomp_m, isAllPeriodic);
-        PLayout_t<T, Dim>* PL = new PLayout_t<T, Dim>(*FL, *mesh);
+        std::shared_ptr<Mesh_t<Dim>> mesh =
+            std::make_shared<Mesh_t<Dim>>(this->domain_m, this->hr_m, this->origin_m);
+
+        std::shared_ptr<FieldLayout_t<Dim>> FL = std::make_shared<FieldLayout_t<Dim>>(
+            MPI_COMM_WORLD, this->domain_m, this->decomp_m, isAllPeriodic);
+
+        std::shared_ptr<PLayout_t<T, Dim>> PL = std::make_shared<PLayout_t<T, Dim>>(*FL, *mesh);
 
         this->pcontainer_m = std::make_shared<ParticleContainer_t>(*PL);
+
         this->fcontainer_m = std::make_shared<FieldContainer_t>(this->hr_m, this->rmin_m,
                                                                 this->rmax_m, this->decomp_m);
-        this->fcontainer_m->initializeFields(*mesh, *FL);
+
+        this->fcontainer_m->initializeFields(mesh, FL);
 
         this->fsolver_m = std::make_shared<FieldSolver_t>(
-            this->solver_m, &this->fcontainer_m->rho_m, &this->fcontainer_m->E_m);
+            this->solver_m, &this->fcontainer_m->getRho(), &this->fcontainer_m->getE());
+
         this->fsolver_m->initSolver();
+
         this->loadbalancer_m = std::make_shared<LoadBalancer_t>(
             this->lbt_m, this->fcontainer_m, this->pcontainer_m, this->fsolver_m);
 
@@ -138,12 +193,6 @@ public:
         Inform m("OpalParticleManager Destructor ");
         m << "Finished time step: " << this->it_m << " time: " << this->time_m << endl;
     }
-
-public:
-    using ParticleContainer_t = ParticleContainer<T, Dim>;
-    using FieldContainer_t    = FieldContainer<T, Dim>;
-    using FieldSolver_t       = FieldSolver<T, Dim>;
-    using LoadBalancer_t      = LoadBalancer<T, Dim>;
 
 public:
     void initFields() {
@@ -197,7 +246,7 @@ public:
 
                     // ippl::apply accesses the view at the given indices and obtains a
                     // reference; see src/Expression/IpplOperations.h
-                    ippl::apply(rhoview, args) = distR.full_pdf(xvec);
+                    ippl::apply(rhoview, args) = distR.getFullPdf(xvec);
                 });
 
             Kokkos::fence();
@@ -218,7 +267,7 @@ public:
             ippl::random::InverseTransformSampling<double, Dim, Kokkos::DefaultExecutionSpace,
                                                    DistR_t>;
         samplingR_t samplingR(distR, this->rmax_m, this->rmin_m, rlayout, this->totalP_m);
-        size_type nlocal = samplingR.getLocalNum();
+        size_type nlocal = samplingR.getLocalSamplesNum();
 
         this->pcontainer_m->create(nlocal);
 
@@ -293,7 +342,7 @@ public:
         bool isFirstRepartition_m = false;
         if (loadbalancer_m->balance(this->totalP_m, this->it_m + 1)) {
             auto* mesh = &fc->rho_m.get_mesh();
-            auto* FL   = &fc->getLayout();
+            auto* FL   = &fc->getFL();
             loadbalancer_m->repartition(FL, mesh, isFirstRepartition_m);
         }
 

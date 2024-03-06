@@ -2,27 +2,33 @@
 #define IPPL_FIELD_SOLVER_H
 
 #include <memory>
+
 #include "Manager/BaseManager.h"
 
-    // Define the FieldSolver class
-    template <typename T, unsigned Dim = 3>
-    class FieldSolver {
-    public:
-        std::string stype_m; // Declare stype_m as a member variable
-        Solver_t<T, Dim> solver_m;
-    private:
-        Field_t<Dim> *rho_m;
-        VField_t<T, Dim> *E_m;
-    
-    public:
-    FieldSolver(std::string solver, Field_t<Dim> *rho, VField_t<T, Dim> *E)
-        : stype_m(solver), rho_m(rho), E_m(E) {}
-    
-    ~FieldSolver(){}
+// Define the FieldSolver class
+template <typename T, unsigned Dim>
+class FieldSolver : public ippl::FieldSolverBase<T, Dim> {
+private:
+    Field_t<Dim>* rho_m;
+    VField_t<T, Dim>* E_m;
 
-    void initSolver() {
+public:
+    FieldSolver(std::string solver, Field_t<Dim>* rho, VField_t<T, Dim>* E)
+        : ippl::FieldSolverBase<T, Dim>(solver)
+        , rho_m(rho)
+        , E_m(E) {}
+
+    ~FieldSolver() {}
+
+    Field_t<Dim>* getRho() const { return rho_m; }
+    void setRho(Field_t<Dim>* rho) { rho_m = rho; }
+
+    VField_t<T, Dim>* getE() const { return rho_m; }
+    void setE(VField_t<T, Dim>* E) { E_m = E; }
+
+    void initSolver() override {
         Inform m("solver ");
-        if (stype_m == "FFT") {
+        if (this->stype_m == "FFT") {
             initFFTSolver();
         }
         /*else if (stype_m == "CG") {
@@ -31,14 +37,15 @@
             initP3MSolver();
         } else if (stype_m == "OPEN") {
             initOpenSolver();
-        }*/ else {
+        }*/
+        else {
             m << "No solver matches the argument" << endl;
         }
     }
 
-    void runSolver() {
-        if (stype_m == "CG") {
-            CGSolver_t<T, Dim>& solver = std::get<CGSolver_t<T, Dim>>(solver_m);
+    void runSolver() override {
+        if (this->stype_m == "CG") {
+            CGSolver_t<T, Dim>& solver = std::get<CGSolver_t<T, Dim>>(this->solver_m);
             solver.solve();
 
             if (ippl::Comm->rank() == 0) {
@@ -50,17 +57,17 @@
                 Inform log(NULL, fname.str().c_str(), Inform::APPEND);
             }
             ippl::Comm->barrier();
-        } else if (stype_m == "FFT") {
+        } else if (this->stype_m == "FFT") {
             if constexpr (Dim == 2 || Dim == 3) {
-                std::get<FFTSolver_t<T, Dim>>(solver_m).solve();
+                std::get<FFTSolver_t<T, Dim>>(this->solver_m).solve();
             }
-        } else if (stype_m == "P3M") {
+        } else if (this->stype_m == "P3M") {
             if constexpr (Dim == 3) {
-                std::get<P3MSolver_t<T, Dim>>(solver_m).solve();
+                std::get<P3MSolver_t<T, Dim>>(this->solver_m).solve();
             }
-        } else if (stype_m == "OPEN") {
+        } else if (this->stype_m == "OPEN") {
             if constexpr (Dim == 3) {
-                std::get<OpenSolver_t<T, Dim>>(solver_m).solve();
+                std::get<OpenSolver_t<T, Dim>>(this->solver_m).solve();
             }
         } else {
             throw std::runtime_error("Unknown solver type");
@@ -69,8 +76,8 @@
 
     template <typename Solver>
     void initSolverWithParams(const ippl::ParameterList& sp) {
-        solver_m.template emplace<Solver>();
-        Solver& solver = std::get<Solver>(solver_m);
+        this->solver_m.template emplace<Solver>();
+        Solver& solver = std::get<Solver>(this->solver_m);
 
         solver.mergeParameters(sp);
 
@@ -79,8 +86,8 @@
         if constexpr (std::is_same_v<Solver, CGSolver_t<T, Dim>>) {
             // The CG solver computes the potential directly and
             // uses this to get the electric field
-            //solver.setLhs(phi_m);
-            //solver.setGradient(E_m);
+            // solver.setLhs(phi_m);
+            // solver.setGradient(E_m);
         } else {
             // The periodic Poisson solver, Open boundaries solver,
             // and the P3M solver compute the electric field directly
@@ -148,5 +155,5 @@
         }
     }
     */
-    };
+};
 #endif
