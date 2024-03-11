@@ -19,23 +19,28 @@ const char* TestName = "LandauDamping";
 
 // define functions used in sampling particles
 struct CustomDistributionFunctions {
-  struct CDF{
-       KOKKOS_INLINE_FUNCTION double operator()(double x, unsigned int d, const double *params_p) const {
-           return x + (params_p[d * 2 + 0] / params_p[d * 2 + 1]) * Kokkos::sin(params_p[d * 2 + 1] * x);
-       }
-  };
+    struct CDF {
+        KOKKOS_INLINE_FUNCTION double operator()(double x, unsigned int d,
+                                                 const double* params_p) const {
+            return x
+                   + (params_p[d * 2 + 0] / params_p[d * 2 + 1])
+                         * Kokkos::sin(params_p[d * 2 + 1] * x);
+        }
+    };
 
-  struct PDF{
-       KOKKOS_INLINE_FUNCTION double operator()(double x, unsigned int d, double const *params_p) const {
-           return 1.0 + params_p[d * 2 + 0] * Kokkos::cos(params_p[d * 2 + 1] * x);
-       }
-  };
+    struct PDF {
+        KOKKOS_INLINE_FUNCTION double operator()(double x, unsigned int d,
+                                                 double const* params_p) const {
+            return 1.0 + params_p[d * 2 + 0] * Kokkos::cos(params_p[d * 2 + 1] * x);
+        }
+    };
 
-  struct Estimate{
-        KOKKOS_INLINE_FUNCTION double operator()(double u, unsigned int d, double const *params_p) const {
+    struct Estimate {
+        KOKKOS_INLINE_FUNCTION double operator()(double u, unsigned int d,
+                                                 double const* params_p) const {
             return u + params_p[d] * 0.;
-	}
-  };
+        }
+    };
 };
 
 class LandauDampingManager
@@ -43,9 +48,10 @@ class LandauDampingManager
                               LoadBalancer<double, 3>> {
 public:
     using ParticleContainer_t = ParticleContainer<T, Dim>;
-    using FieldContainer_t = FieldContainer<T, Dim>;
-    using FieldSolver_t= FieldSolver<T, Dim>;
-    using LoadBalancer_t= LoadBalancer<T, Dim>;
+    using FieldContainer_t    = FieldContainer<T, Dim>;
+    using FieldSolver_t       = FieldSolver<T, Dim>;
+    using LoadBalancer_t      = LoadBalancer<T, Dim>;
+
 private:
     size_type totalP;
     int nt;
@@ -53,16 +59,19 @@ private:
     double lbt;
     std::string solver;
     std::string step_method;
+
 public:
-    LandauDampingManager(size_type totalP_, int nt_, Vector_t<int, Dim>& nr_, double lbt_, std::string& solver_, std::string& step_method_)
-        : ippl::PicManager<double, 3, ParticleContainer<double, 3>, FieldContainer<double, 3>, LoadBalancer<double, 3>>()
+    LandauDampingManager(size_type totalP_, int nt_, Vector_t<int, Dim>& nr_, double lbt_,
+                         std::string& solver_, std::string& step_method_)
+        : ippl::PicManager<double, 3, ParticleContainer<double, 3>, FieldContainer<double, 3>,
+                           LoadBalancer<double, 3>>()
         , totalP(totalP_)
         , nt(nt_)
         , nr(nr_)
         , lbt(lbt_)
         , solver(solver_)
-        , step_method(step_method_){}
-    ~LandauDampingManager(){}
+        , step_method(step_method_) {}
+    ~LandauDampingManager() {}
 
 private:
     double loadbalancethreshold_m;
@@ -146,11 +155,13 @@ public:
         m << "Discretization:" << endl
           << "nt " << this->nt << " Np= " << this->totalP << " grid = " << this->nr << endl;
 
-        std::shared_ptr<Mesh_t<Dim>> mesh = std::make_shared<Mesh_t<Dim>>(this->domain, this->hr, this->origin);
+        std::shared_ptr<Mesh_t<Dim>> mesh =
+            std::make_shared<Mesh_t<Dim>>(this->domain, this->hr, this->origin);
 
         this->isAllPeriodic = true;
 
-        std::shared_ptr<FieldLayout_t<Dim>> FL = std::make_shared<FieldLayout_t<Dim>>(MPI_COMM_WORLD, this->domain, this->decomp, this->isAllPeriodic);
+        std::shared_ptr<FieldLayout_t<Dim>> FL = std::make_shared<FieldLayout_t<Dim>>(
+            MPI_COMM_WORLD, this->domain, this->decomp, this->isAllPeriodic);
 
         std::shared_ptr<PLayout_t<T, Dim>> PL = std::make_shared<PLayout_t<T, Dim>>(*FL, *mesh);
 
@@ -166,8 +177,9 @@ public:
 
         this->fcontainer_m->initializeFields(mesh, FL);
 
-        this->fsolver_m = std::make_shared<FieldSolver_t>(this->solver, &this->fcontainer_m->getRho(),
-                                                          &this->fcontainer_m->getE());
+        this->fsolver_m = std::make_shared<FieldSolver_t>(
+            this->solver, &this->fcontainer_m->getRho(), &this->fcontainer_m->getE());
+
         this->fsolver_m->initSolver();
 
         this->loadbalancer_m = std::make_shared<LoadBalancer_t>(
@@ -181,7 +193,7 @@ public:
 
         this->setLoadBalancer(loadbalancer_m);
 
-        this ->initializeParticles(mesh, FL);
+        this->initializeParticles(mesh, FL);
 
         this->fcontainer_m->getRho() = 0.0;
 
@@ -196,17 +208,19 @@ public:
         m << "Done";
     }
 
-    void initializeParticles(std::shared_ptr<Mesh_t<Dim>> mesh_m, std::shared_ptr<FieldLayout_t<Dim>> FL_m){
+    void initializeParticles(std::shared_ptr<Mesh_t<Dim>> mesh_m,
+                             std::shared_ptr<FieldLayout_t<Dim>> FL_m) {
         Inform m("Initialize Particles");
 
-        using DistR_t = ippl::random::Distribution<double, Dim, 2 * Dim, CustomDistributionFunctions>;
-        double* parR  = new double[2 * Dim];
-        parR[0]       = this->alpha;
-        parR[1]       = this->kw[0];
-        parR[2]       = this->alpha;
-        parR[3]       = this->kw[1];
-        parR[4]       = this->alpha;
-        parR[5]       = this->kw[2];
+        using DistR_t =
+            ippl::random::Distribution<double, Dim, 2 * Dim, CustomDistributionFunctions>;
+        double* parR = new double[2 * Dim];
+        parR[0]      = this->alpha;
+        parR[1]      = this->kw[0];
+        parR[2]      = this->alpha;
+        parR[3]      = this->kw[1];
+        parR[4]      = this->alpha;
+        parR[5]      = this->kw[2];
         DistR_t distR(parR);
 
         Vector_t<double, Dim> kw_m     = this->kw;
@@ -221,8 +235,9 @@ public:
 
             using index_array_type = typename ippl::RangePolicy<Dim>::index_array_type;
             ippl::parallel_for(
-                "Assign initial rho based on PDF", this->fcontainer_m->getRho().getFieldRangePolicy(),
-                KOKKOS_LAMBDA (const index_array_type& args) {
+                "Assign initial rho based on PDF",
+                this->fcontainer_m->getRho().getFieldRangePolicy(),
+                KOKKOS_LAMBDA(const index_array_type& args) {
                     // local to global index conversion
                     Vector_t<double, Dim> xvec =
                         (args + lDom.first() - nghost + 0.5) * hr_m + origin_m;
@@ -240,7 +255,7 @@ public:
 
         // Sample particle positions:
         ippl::detail::RegionLayout<double, Dim, Mesh_t<Dim>> rlayout;
-        rlayout = ippl::detail::RegionLayout<double, Dim, Mesh_t<Dim>>( *FL_m, *mesh_m );
+        rlayout = ippl::detail::RegionLayout<double, Dim, Mesh_t<Dim>>(*FL_m, *mesh_m);
 
         // unsigned int
         size_type totalP_m = this->totalP;
@@ -278,7 +293,7 @@ public:
         }
     }
 
-    void LeapFrogStep(){
+    void LeapFrogStep() {
         // LeapFrog time stepping https://en.wikipedia.org/wiki/Leapfrog_integration
         // Here, we assume a constant charge-to-mass ratio of -1 for
         // all the particles hence eliminating the need to store mass as
@@ -300,9 +315,9 @@ public:
         int it_m                  = this->it;
         bool isFirstRepartition_m = false;
         if (loadbalancer_m->balance(totalP_m, it_m + 1)) {
-                auto* mesh = &fc->getRho().get_mesh();
-                auto* FL = &fc->getFL();
-                loadbalancer_m->repartition(FL, mesh, isFirstRepartition_m);
+            auto* mesh = &fc->getRho().get_mesh();
+            auto* FL   = &fc->getFL();
+            loadbalancer_m->repartition(FL, mesh, isFirstRepartition_m);
         }
 
         // scatter the charge onto the underlying grid
@@ -324,9 +339,9 @@ public:
 
     void gatherCIC() {
         using Base                        = ippl::ParticleBase<ippl::ParticleSpatialLayout<T, Dim>>;
-        Base::particle_position_type *E_p = &this->pcontainer_m->getE();
-        Base::particle_position_type *R_m = &this->pcontainer_m->R;
-        VField_t<T, Dim> *E_f             = &this->fcontainer_m->getE();
+        Base::particle_position_type* E_p = &this->pcontainer_m->getE();
+        Base::particle_position_type* R_m = &this->pcontainer_m->R;
+        VField_t<T, Dim>* E_f             = &this->fcontainer_m->getE();
         gather(*E_p, *E_f, *R_m);
     }
 
@@ -335,16 +350,16 @@ public:
         this->fcontainer_m->getRho() = 0.0;
 
         using Base                        = ippl::ParticleBase<ippl::ParticleSpatialLayout<T, Dim>>;
-        ippl::ParticleAttrib<double> *q_m = &this->pcontainer_m->getQ();
-        Base::particle_position_type *R_m = &this->pcontainer_m->R;
-        Field_t<Dim> *rho_m               = &this->fcontainer_m->getRho();
+        ippl::ParticleAttrib<double>* q_m = &this->pcontainer_m->getQ();
+        Base::particle_position_type* R_m = &this->pcontainer_m->R;
+        Field_t<Dim>* rho_m               = &this->fcontainer_m->getRho();
         double Q_m                        = this->Q;
         Vector_t<double, Dim> rmin_m      = rmin;
         Vector_t<double, Dim> rmax_m      = rmax;
         Vector_t<double, Dim> hr_m        = hr;
 
         scatter(*q_m, *rho_m, *R_m);
-        double rel_error = std::fabs((Q_m-(*rho_m).sum())/Q_m);
+        double rel_error = std::fabs((Q_m - (*rho_m).sum()) / Q_m);
 
         m << rel_error << endl;
 
@@ -403,8 +418,8 @@ public:
         double globaltemp = 0.0;
         ippl::Comm->reduce(localEx2, globaltemp, 1, std::plus<double>());
 
-        double fieldEnergy =
-            std::reduce(fcontainer_m->getHr().begin(), fcontainer_m->getHr().end(), globaltemp, std::multiplies<double>());
+        double fieldEnergy = std::reduce(fcontainer_m->getHr().begin(), fcontainer_m->getHr().end(),
+                                         globaltemp, std::multiplies<double>());
 
         double ExAmp = 0.0;
         ippl::Comm->reduce(localExNorm, ExAmp, 1, std::greater<double>());

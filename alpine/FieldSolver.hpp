@@ -2,26 +2,29 @@
 #define IPPL_FIELD_SOLVER_H
 
 #include <memory>
+
 #include "Manager/BaseManager.h"
 
 // Define the FieldSolver class
 template <typename T, unsigned Dim>
 class FieldSolver : public ippl::FieldSolverBase<T, Dim> {
-  private:
-    Field_t<Dim> *rho_m;
-    VField_t<T, Dim> *E_m;
-    
-  public:
-    FieldSolver(std::string solver, Field_t<Dim> *rho, VField_t<T, Dim> *E)
-          :  ippl::FieldSolverBase<T, Dim>(solver), rho_m(rho), E_m(E) {}
-    
-    ~FieldSolver(){}
+private:
+    Field_t<Dim>* rho_m;
+    VField_t<T, Dim>* E_m;
 
-    Field_t<Dim> *getRho() const { return rho_m; }
-    void setRho(Field_t<Dim> *rho){ rho_m = rho; }
+public:
+    FieldSolver(std::string solver, Field_t<Dim>* rho, VField_t<T, Dim>* E)
+        : ippl::FieldSolverBase<T, Dim>(solver)
+        , rho_m(rho)
+        , E_m(E) {}
 
-    VField_t<T, Dim> *getE() const { return rho_m; }
-    void setE(VField_t<T, Dim> *E){ E_m = E; }
+    ~FieldSolver() {}
+
+    Field_t<Dim>* getRho() const { return rho_m; }
+    void setRho(Field_t<Dim>* rho) { rho_m = rho; }
+
+    VField_t<T, Dim>* getE() const { return rho_m; }
+    void setE(VField_t<T, Dim>* E) { E_m = E; }
 
     void initSolver() override {
         Inform m("solver ");
@@ -34,7 +37,8 @@ class FieldSolver : public ippl::FieldSolverBase<T, Dim> {
             initP3MSolver();
         } else if (stype_m == "OPEN") {
             initOpenSolver();
-        }*/ else {
+        }*/
+        else {
             m << "No solver matches the argument" << endl;
         }
     }
@@ -82,8 +86,8 @@ class FieldSolver : public ippl::FieldSolverBase<T, Dim> {
         if constexpr (std::is_same_v<Solver, CGSolver_t<T, Dim>>) {
             // The CG solver computes the potential directly and
             // uses this to get the electric field
-            //solver.setLhs(phi_m);
-            //solver.setGradient(E_m);
+            // solver.setLhs(phi_m);
+            // solver.setGradient(E_m);
         } else {
             // The periodic Poisson solver, Open boundaries solver,
             // and the P3M solver compute the electric field directly

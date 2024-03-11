@@ -22,6 +22,7 @@ add_compile_options (-Wall)
 add_compile_options (-Wunused)
 add_compile_options (-Wextra)
 add_compile_options (-Werror)
+add_compile_options (-Wno-unused-parameter)
 
 # allow deprecated functions
 add_compile_options (-Wno-deprecated-declarations)
