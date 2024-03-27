@@ -17,9 +17,12 @@ set (_HDRS
     Serializable.h
     Request.h
     Status.h
+    PointToPoint.hpp
     TagMaker.h
     Tags.h
     Wait.h
+    Window.h
+    Window.hpp
     )
 
 include_directories (

@@ -56,6 +56,7 @@ endmacro ()
 
 set (IPPL_BASEDIR_HDRS
     Ippl.h
+    IpplCore.h
     IpplVersions.h
     )
 add_ippl_headers (${IPPL_BASEDIR_HDRS})
@@ -70,6 +71,7 @@ else()
 endif()
 add_subdirectory (Field)
 add_subdirectory (FieldLayout)
+add_subdirectory (Decomposition)
 add_subdirectory (Index)
 add_subdirectory (Interpolation)
 add_subdirectory (Meshes)
@@ -80,6 +82,7 @@ add_subdirectory (Expression)
 add_subdirectory (Types)
 add_subdirectory (Partition)
 add_subdirectory (Random)
+add_subdirectory (Manager)
 
 if (ENABLE_SOLVERS)
     message (STATUS "Adding Solver subdirectories")

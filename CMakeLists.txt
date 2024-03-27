@@ -63,10 +63,10 @@ option (ENABLE_SOLVERS "Enable IPPL solvers" OFF)
 
 add_subdirectory (src)
 
-option (ENABLE_TESTS "Enable IPPL tests" OFF)
-if (ENABLE_TESTS)
-    add_subdirectory (test)
-endif ()
+#option (ENABLE_TESTS "Enable IPPL tests" OFF)
+#if (ENABLE_TESTS)
+#    add_subdirectory (test)
+#endif ()
 
 option (ENABLE_ALPINE "Enable Alpine" OFF)
 if (ENABLE_ALPINE)

@@ -5,6 +5,7 @@ set (_HDRS
     Vector.h
     Vector.hpp
     ViewTypes.h
+    IpplTypes.h
     )
 
 include_DIRECTORIES (

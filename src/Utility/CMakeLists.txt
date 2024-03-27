@@ -25,6 +25,8 @@ set (_HDRS
     vmap.h
     vmap.hpp
     ParameterList.h
+    ParallelDispatch.h
+    ViewUtils.h
     TypeUtils.h
     )
 
